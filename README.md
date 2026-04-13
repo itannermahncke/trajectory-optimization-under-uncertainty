@@ -102,7 +102,6 @@ The current waypoint is defined as a function of navigation state, which changes
 $$p_{waypoint,s_k}$$
 
 > where: \
-
 $$s_{k+1}=\left\{
   \begin{array}{lr}
     s_k+1: & |p_k-p_{waypoint,s_k}| < \epsilon \\
