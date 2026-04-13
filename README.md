@@ -21,19 +21,19 @@ The objective function describes the multi-objective minimization of A) physical
 
 $$min f(u)=E[J_{position}+J_{time}+J_{energy}]$$
 
-> where:
+where:
 $$J_{position}=||p_k-p_{waypoint,s_k}||$$
 $$J_{time}=T_{elapsed}=dt*k$$
 $$J_{energy}=\sum_{k=0}^{k}\frac{1}{2}mv_k^2$$
 
 The decision variable driving the optimization is the sequence of control vectors that dictate the ASV's motion in physical space. The control vector contains a linear velocity term and an angular velocity term.
 
-> w.r.t.
+w.r.t.
 $$u=[u_{0}:u_k]=[v_{0}:v_k,\omega_{0}:\omega_k]$$
 
 The optimization is constrained by several factors, including off-limits regions of physical space, limitations on time and energy consumption, and upper bounds on control vector values.
 
-> s.t.
+s.t.
 $$p \notin P_{off-limits}$$
 $$J_{time}\leq T_{max}$$
 $$J_{energy}\leq E_{max}$$
@@ -50,19 +50,19 @@ State spaces describe sets of variables that collectively describe a key attribu
 
 The ASV state describes key values about the ASV's position, orientation, and motion in physical space. It is comprised of the ASV's x position, y position, heading, linear velocity, and angular velocity.
 
-> ASV state:
+ASV state:
 
 $$x_k=[p_x, p_y, \theta, v, \omega]$$
 
 The ASV control vector describes the ASV's intention of movement, which is imperfectly executed by motors in the physical world. It is comprised of the ASV's commanded linear velocity and commanded angular velocity.
 
-> ASV control:
+ASV control:
 
 $$u_k=[v_{k,cmd}, \omega_{k,cmd}]$$
 
 The environmental disturbance vector describes the environment's physical influence on the ASV's motion, modeled as velocity. It is comprised of an x velocity component and a y velocity component.
 
-> Environmental disturbance:
+Environmental disturbance:
 
 $$d=[d_x,d_y]$$
 
@@ -84,10 +84,10 @@ $$W=\{p_{waypoint,1},...,p_{waypoint,n}\}$$
 
 The current waypoint is defined as a function of navigation state, which changes as waypoints are achieved by the ASV.
 
-> current waypoint:
+current waypoint:
 $$p_{waypoint,s_k}$$
 
-> where:
+where:
 $$s_{k+1}=\left\{
   \begin{array}{lr}
     s_k+1: & |p_k-p_{waypoint,s_k}| < \epsilon \\
@@ -101,22 +101,22 @@ $$s_{k+1}=\left\{
 *TODO: Gaussians for now; dig into more accurate modeling later*
 
 #### Destination Uncertainty
-> Deployment point location uncertainty:
+Deployment point location uncertainty:
 
 $$p_{deploy}^{actual}=p_{deploy}^{desired}+\mathcal{N}(0,\sigma_{pos}^2)$$
 
->Waypoint location uncertainty:
+Waypoint location uncertainty:
 
 $$p_{waypoint,s_k}^{actual}=p_{waypoint,s_k}^{desired}+\mathcal{N}(0,\sigma_{pos}^2)$$
 
 #### Measurement Uncertainty
-> Motion control uncertainty:
+Motion control uncertainty:
 $$u_k^{actual}=u_k^{cmd}+\mathcal{N}(0,\sigma_{cmd}^2)$$
 
-> Localization uncertainty:
+Localization uncertainty:
 $$p_k^{measured}=p_k^{actual}+\mathcal{N}(0,\sigma_{GPS}^2)$$
 
-> Disturbance uncertainty:
+Disturbance uncertainty:
 $$d^{measured}=d^{actual}+\mathcal{N}(0,\sigma_{ADCP}^2)$$
 
 ### Constants
