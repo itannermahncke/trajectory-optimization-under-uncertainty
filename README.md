@@ -17,50 +17,107 @@ In this project, I use optimization to find the most efficient sequence of motio
 
 ### Objective Function
 
-$$min f(u)=E[J_{time}+J_{energy}+J_{position}]$$
+The objective function describes the multi-objective minimization of A) physical position of the ASV in relation to its next waypoint, B) time elapsed at the point of mission completion, and C) energy consumed at the point of mission completion.
 
-where: \
-$J_{time}=T_{elapsed}=dt*k$ \
-$J_{energy}=\sum_{k=0}^{k}\frac{1}{2}mv_k^2$ \
-$J_{position}=||p_k-W_{s(k)}||^2$
+$$min f(u)=E[J_{position}+J_{time}+J_{energy}]$$
 
-w.r.t. \
-$u=[u_{0}:u_k]=[v_{0}:v_k,\omega_{0}:\omega_k]$
+> where:
+$$J_{position}=||p_k-p_{waypoint,s_k}||$$
+$$J_{time}=T_{elapsed}=dt*k$$
+$$J_{energy}=\sum_{k=0}^{k}\frac{1}{2}mv_k^2$$
 
-s.t. \
-$p \notin P_{off-limits}$ \
-$J_{time}\leq T_{max}$ \
-$J_{energy}\leq E_{max}$ \
-$|v_k|\leq v_{max}$ \
-$|\omega_k|\leq \omega_{max}$
+The decision variable driving the optimization is the sequence of control vectors that dictate the ASV's motion in physical space. The control vector contains a linear velocity term and an angular velocity term.
+
+> w.r.t.
+$$u=[u_{0}:u_k]=[v_{0}:v_k,\omega_{0}:\omega_k]$$
+
+The optimization is constrained by several factors, including off-limits regions of physical space, limitations on time and energy consumption, and upper bounds on control vector values.
+
+> s.t.
+$$p \notin P_{off-limits}$$
+$$J_{time}\leq T_{max}$$
+$$J_{energy}\leq E_{max}$$
+$$|v_k|\leq v_{max}$$
+$$|\omega_k|\leq \omega_{max}$$
 
 ### ASV Kinematics
 
-All variables referenced here represent actual values, rather than values measured or intended by the aSV.
+The objective function is minimized by a sequence of control vectors, but the ASV's success is defined by its sequence of positions, which is a related but not identical value. Kinematic equations relate the ASV's position to control vectors as well as environmental disturbances. As such, all variables referenced here represent actual values, rather than values measured or intended by the ASV, unless stated otherwise.
 
-ASV state: $x_k=[p_x, p_y, \theta, v, \omega]$ \
-ASV control: $u_k=[v_k, \omega_k]$ \
-Environmental disturbance: $d=[d_x,d_y]$
+#### State Spaces
 
-Motion kinematics: \
-$p_{x,k+1}^{}=p_{x,k}+(v_kcos(\omega_k)+d_x)*dt$ \
-$p_{y,k+1}=p_{y,k}+(v_ksin(\omega_k)+d_y)*dt$ \
-$\theta_{k+1}=\theta_k+\omega_k*dt$ \
-$v_{k+1}=v_{cmd}$ \
-$\omega_{k+1}=\omega_{cmd}$
+State spaces describe sets of variables that collectively describe a key attribute about a model. The state spaces below act as a key to relate individual variables and the behaviors they influence together.
+
+The ASV state describes key values about the ASV's position, orientation, and motion in physical space. It is comprised of the ASV's x position, y position, heading, linear velocity, and angular velocity.
+
+> ASV state:
+
+$$x_k=[p_x, p_y, \theta, v, \omega]$$
+
+The ASV control vector describes the ASV's intention of movement, which is imperfectly executed by motors in the physical world. It is comprised of the ASV's commanded linear velocity and commanded angular velocity.
+
+> ASV control:
+
+$$u_k=[v_{k,cmd}, \omega_{k,cmd}]$$
+
+The environmental disturbance vector describes the environment's physical influence on the ASV's motion, modeled as velocity. It is comprised of an x velocity component and a y velocity component.
+
+> Environmental disturbance:
+
+$$d=[d_x,d_y]$$
+
+#### Motion Kinematics
+
+These are the set of equations governing the ASV's state transition after each timestep. These relate the ASV's next state to its current state, control vectors, and active disturbances.
+
+$$p_{x,k+1}^{}=p_{x,k}+(v_kcos(\theta_k)+d_x)*dt$$
+$$p_{y,k+1}=p_{y,k}+(v_ksin(\theta_k)+d_y)*dt$$
+$$\theta_{k+1}=\theta_k+\omega_k*dt$$
+$$v_{k+1}=v_{cmd}$$
+$$\omega_{k+1}=\omega_{cmd}$$
+
+### Waypoint Iteration
+
+In the objective function, the ASV's distance to its next waypoint is a critical factor to minimize. As such, the model must iterate through a set of waypoints throughout the optimization process.
+
+$$W=\{p_{waypoint,1},...,p_{waypoint,n}\}$$
+
+The current waypoint is defined as a function of navigation state, which changes as waypoints are achieved by the ASV.
+
+> current waypoint:
+$$p_{waypoint,s_k}$$
+
+> where:
+$$s_{k+1}=\left\{
+  \begin{array}{lr}
+    s_k+1: & |p_k-p_{waypoint,s_k}| < \epsilon \\
+    s_k: & otherwise
+  \end{array}
+\right.$$
+
 
 ### Uncertainty
 
 *TODO: Gaussians for now; dig into more accurate modeling later*
 
 #### Destination Uncertainty
-Deployment point location uncertainty: $D_{actual}=D_{set}+\mathcal{N}(0,\sigma_{pos}^2)$ \
-Waypoint location uncertainty: $W_{s(k), actual}=$W_{s(k), set}+\mathcal{N}(0,\sigma_{pos}^2)$
+> Deployment point location uncertainty:
+
+$$p_{deploy}^{actual}=p_{deploy}^{desired}+\mathcal{N}(0,\sigma_{pos}^2)$$
+
+>Waypoint location uncertainty:
+
+$$p_{waypoint,s_k}^{actual}=p_{waypoint,s_k}^{desired}+\mathcal{N}(0,\sigma_{pos}^2)$$
 
 #### Measurement Uncertainty
-Motion control uncertainty: $u_k^{actual}=u_k^{command}+\mathcal{N}(0,\sigma_{cmd}^2)$ \
-Localization uncertainty: $p_k^{measured}=p_k^{actual}+\mathcal{N}(0,\sigma_{GPS}^2)$ \
-Disturbance uncertainty: $d_{measured}=d_{actual}+\mathcal{N}(0,\sigma_{ADCP}^2)$
+> Motion control uncertainty:
+$$u_k^{actual}=u_k^{cmd}+\mathcal{N}(0,\sigma_{cmd}^2)$$
+
+> Localization uncertainty:
+$$p_k^{measured}=p_k^{actual}+\mathcal{N}(0,\sigma_{GPS}^2)$$
+
+> Disturbance uncertainty:
+$$d^{measured}=d^{actual}+\mathcal{N}(0,\sigma_{ADCP}^2)$$
 
 ### Constants
 
@@ -82,7 +139,7 @@ $\sigma_{ADCP}=???$
 
 #### Modeling Constants
 Modeling constants are chosen for their utility in balancing a smooth and realistic model. \
-$dt=0.1$ s 
+$dt=0.1$ s
 
 ## Methodology
 
