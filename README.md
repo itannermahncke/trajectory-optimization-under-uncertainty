@@ -98,9 +98,11 @@ $$W=\{p_{waypoint,1},...,p_{waypoint,n}\}$$
 The current waypoint is defined as a function of navigation state, which changes as waypoints are achieved by the ASV.
 
 > current waypoint: \
+
 $$p_{waypoint,s_k}$$
 
 > where: \
+
 $$s_{k+1}=\left\{
   \begin{array}{lr}
     s_k+1: & |p_k-p_{waypoint,s_k}| < \epsilon \\
@@ -124,12 +126,15 @@ $$p_{waypoint,s_k}^{actual}=p_{waypoint,s_k}^{desired}+\mathcal{N}(0,\sigma_{pos
 
 #### Measurement Uncertainty
 > Motion control uncertainty: \
+
 $$u_k^{actual}=u_k^{cmd}+\mathcal{N}(0,\sigma_{cmd}^2)$$
 
 > Localization uncertainty: \
+
 $$p_k^{measured}=p_k^{actual}+\mathcal{N}(0,\sigma_{GPS}^2)$$
 
 > Disturbance uncertainty: \
+
 $$d^{measured}=d^{actual}+\mathcal{N}(0,\sigma_{ADCP}^2)$$
 
 ### Constants
