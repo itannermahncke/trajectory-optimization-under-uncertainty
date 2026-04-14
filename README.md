@@ -1,4 +1,4 @@
-# Probabilistic Design Optimization Final Project: Trajectory Optimization Under Uncertainty for Autonomous Surface VEssel
+# Probabilistic Design Optimization Final Project: Trajectory Optimization Under Uncertainty for Autonomous Surface Vessel
 > Ivy Mahncke
 
 ## Executive Summary
@@ -9,9 +9,36 @@ In this project, I use optimization to find the most efficient sequence of motio
 
 ### Problem Context
 
+- Environmental monitoring is difficult and costly for human divers, but it needs to be performed frequently to produce useful data
+- ASVs are capable of autonomously exploring and monitoring designated regions without experiencing fatigue
+- Marine environments are dynamic and uncertain due to environmental disturbances such as wind and current
+- Optimal path-planning is necessary due to limited battery life and availability of field teams
+- Makes more sense to optimize control vectors because ASV can directly control them, rather than position directly which is a function of control vectors and environmental disturbances
+
+### Stakeholders, Rquirements Objectives
+
+- Shore Research Team interests:
+  - effective data collection that leads to results and actions
+  - valuable data that is relevant to ongoing projects
+  - consistent and reliable data collection over time
+- Field Deployment Team interests:
+  - efficient and thorough data collection due to human deployment limits
+  - safety of public, wildlife, and ASV during operation
+  - no repeats; all necessary data collected in a single deployment
+- Marine Wildlife & Ecosystem interests:
+  - minimal disruption experienced due to monitoring
+  - human aid for environmental health and robustness
+
+- Mission requirements:
+  - Efficiency (all waypoints visited)
+  - Safety (ASV does not venture into off-limits zones or extend past its limitations)
+- Mission objectives:
+  - Efficiency (waypoints visited as quickly as possible)
+  - Safety (mission uses the least amount of energy possible)
+
 ### Tenchi Diagram
 
-<img src="./images/final_tenchi.JPG" width="600">
+<img src="./images/final_tenchi.png" width="600">
 
 ## Formulation
 
@@ -21,7 +48,7 @@ The objective function describes the multi-objective minimization of A) physical
 
 $$min f(u)=E[J_{position}+J_{time}+J_{energy}]$$
 
-> where:
+where:
 
 $$J_{position}=||p_k-p_{waypoint,s_k}||$$
 
@@ -31,13 +58,13 @@ $$J_{energy}=\sum_{k=0}^{k}\frac{1}{2}mv_k^2$$
 
 The decision variable driving the optimization is the sequence of control vectors that dictate the ASV's motion in physical space. The control vector contains a linear velocity term and an angular velocity term.
 
-> w.r.t.
+w.r.t.
 
 $$u=[u_{0}:u_k]=[v_{0}:v_k,\omega_{0}:\omega_k]$$
 
 The optimization is constrained by several factors, including off-limits regions of physical space, limitations on time and energy consumption, and upper bounds on control vector values.
 
-> s.t.
+s.t.
 
 $$p \notin P_{off-limits}$$
 
@@ -59,19 +86,19 @@ State spaces describe sets of variables that collectively describe a key attribu
 
 The ASV state describes key values about the ASV's position, orientation, and motion in physical space. It is comprised of the ASV's x position, y position, heading, linear velocity, and angular velocity.
 
-> ASV state: \
+ASV state:
 
 $$x_k=[p_x, p_y, \theta, v, \omega]$$
 
 The ASV control vector describes the ASV's intention of movement, which is imperfectly executed by motors in the physical world. It is comprised of the ASV's commanded linear velocity and commanded angular velocity.
 
-> ASV control: \
+ASV control:
 
 $$u_k=[v_{k,cmd}, \omega_{k,cmd}]$$
 
 The environmental disturbance vector describes the environment's physical influence on the ASV's motion, modeled as velocity. It is comprised of an x velocity component and a y velocity component.
 
-> Environmental disturbance: \
+Environmental disturbance:
 
 $$d=[d_x,d_y]$$
 
@@ -97,11 +124,11 @@ $$W=\{p_{waypoint,1},...,p_{waypoint,n}\}$$
 
 The current waypoint is defined as a function of navigation state, which changes as waypoints are achieved by the ASV.
 
-> current waypoint: \
+current waypoint:
 
 $$p_{waypoint,s_k}$$
 
-> where: \
+where:
 
 $$s_{k+1}=\left\{
   \begin{array}{lr}
@@ -113,27 +140,27 @@ $$s_{k+1}=\left\{
 
 ### Uncertainty
 
-*TODO: Gaussians for now; dig into more accurate modeling later*
+>*TODO: Gaussians for now; dig into more accurate modeling later*
 
 #### Destination Uncertainty
-> Deployment point location uncertainty: \
+Deployment point location uncertainty:
 
 $$p_{deploy}^{actual}=p_{deploy}^{desired}+\mathcal{N}(0,\sigma_{pos}^2)$$
 
->Waypoint location uncertainty: \
+Waypoint location uncertainty:
 
 $$p_{waypoint,s_k}^{actual}=p_{waypoint,s_k}^{desired}+\mathcal{N}(0,\sigma_{pos}^2)$$
 
 #### Measurement Uncertainty
-> Motion control uncertainty: \
+Motion control uncertainty:
 
 $$u_k^{actual}=u_k^{cmd}+\mathcal{N}(0,\sigma_{cmd}^2)$$
 
-> Localization uncertainty: \
+Localization uncertainty:
 
 $$p_k^{measured}=p_k^{actual}+\mathcal{N}(0,\sigma_{GPS}^2)$$
 
-> Disturbance uncertainty: \
+Disturbance uncertainty:
 
 $$d^{measured}=d^{actual}+\mathcal{N}(0,\sigma_{ADCP}^2)$$
 
@@ -150,20 +177,28 @@ $\omega_{max}=2\pi\frac{rad}{s}$
 
 #### Uncertainty Constants
 
-*TODO: Research motors and sensors datasheets for these values* \
+>*TODO: Research motors and sensors datasheets for these values*
+
 $\sigma_{cmd}=???$ \
 $\sigma_{GPS}=???$ \
 $\sigma_{ADCP}=???$
 
 #### Modeling Constants
-Modeling constants are chosen for their utility in balancing a smooth and realistic model. \
+Modeling constants are chosen for their utility in balancing a smooth and realistic model.
+
 $dt=0.1$ s
 
 ## Methodology
 
 ### Optimization Method
 
+
+
 ### Simulation Environment
+
+>*Question: Can I even do sequence optimization in py-grama?*
+
+>*Idea: adapt my [existing 2D robot sim](https://github.com/probrobo26/probo_playground) for this project*
 
 ## Results
 
@@ -172,4 +207,4 @@ $dt=0.1$ s
 ## Sources
 ### Accurate Modeling
 [BlueRobotics BlueBoat datasheet](https://bluerobotics.com/wp-content/uploads/2023/03/BLUEBOAT-DATASHEET-v1.1-JAN-2025.pdf) \
-[BlueRobotics battery](https://bluerobotics.com/store/comm-control-power/powersupplies-batteries/battery-li-4s-18ah-r3/) \
+[BlueRobotics battery](https://bluerobotics.com/store/comm-control-power/powersupplies-batteries/battery-li-4s-18ah-r3/)
