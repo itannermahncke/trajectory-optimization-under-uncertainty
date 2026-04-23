@@ -3,7 +3,7 @@
 
 ## Executive Summary
 
-In this project, I use optimization to find the most efficient sequence of motion control commands for an Autonomous Surface Vessel (ASV) to execute as it explores designated waypoints over regions of scientific interest in a disturbance-heavy marine environment. I formulate the problem as a multi-objective optimization problem where distance from waypoints, elapsed time, and energy consumption are all costs to minimize. I also constrain the problem by designating off-limit areas such as coastlines or recreational marine areas, as well as maximum values for expended time and energy. I also model uncertainty that is present in the ASV's ability to sense its precise location, sense environmental disturbances, and execute desired motor commands.
+In this project, I use optimization to find the most efficient sequence of motion control commands for an Autonomous Surface Vessel (ASV) to execute as it navigates to a given waypoint in a disturbance-heavy marine environment. I formulate the problem as a multi-objective optimization problem where elapsed time and energy consumption are all costs to minimize. I also constrain the problem by designating off-limit areas and defining physical motion constraints for the ASV. I also model uncertainty that is present in the ASV's ability to sense environmental disturbances and execute desired motor commands.
 
 ## Background
 
@@ -13,7 +13,7 @@ In this project, I use optimization to find the most efficient sequence of motio
 - ASVs are capable of autonomously exploring and monitoring designated regions without experiencing fatigue
 - Marine environments are dynamic and uncertain due to environmental disturbances such as wind and current
 - Optimal path-planning is necessary due to limited battery life and availability of field teams
-- Makes more sense to optimize control vectors because ASV can directly control them, rather than position directly which is a function of control vectors and environmental disturbances
+- Makes more sense to optimize control vector because ASV can directly control it, rather than position directly which is a function of control vectors and environmental disturbances
 
 ### Stakeholders, Rquirements Objectives
 
@@ -46,21 +46,20 @@ In this project, I use optimization to find the most efficient sequence of motio
 
 The objective function describes the multi-objective minimization of A) physical position of the ASV in relation to its next waypoint, B) time elapsed at the point of mission completion, and C) energy consumed at the point of mission completion.
 
-$$min f(u)=E[J_{position}+J_{time}+J_{energy}]$$
+$$min f(u)=E[J_{time}+J_{energy}]$$
 
 where:
 
-$$J_{position}=||p_k-p_{waypoint,s_k}||$$
+$$J_{time}=T_{elapsed}=dt*n_{timesteps}$$
 
-$$J_{time}=T_{elapsed}=dt*k$$
-
-$$J_{energy}=\sum_{k=0}^{k}\frac{1}{2}mv_k^2$$
+> TODO: formulate energy if i want more energy expended when going against the current
+$$J_{energy}=\sum_{k=0}^{n}\omega_k^2$$
 
 The decision variable driving the optimization is the sequence of control vectors that dictate the ASV's motion in physical space. The control vector contains a linear velocity term and an angular velocity term.
 
 w.r.t.
 
-$$u=[u_{0}:u_k]=[v_{0}:v_k,\omega_{0}:\omega_k]$$
+$$u=[\omega_{0}:\omega_k]$$
 
 The optimization is constrained by several factors, including off-limits regions of physical space, limitations on time and energy consumption, and upper bounds on control vector values.
 
@@ -71,8 +70,6 @@ $$p \notin P_{off-limits}$$
 $$J_{time}\leq T_{max}$$
 
 $$J_{energy}\leq E_{max}$$
-
-$$|v_k|\leq v_{max}$$
 
 $$|\omega_k|\leq \omega_{max}$$
 
@@ -86,19 +83,20 @@ State spaces describe sets of variables that collectively describe a key attribu
 
 The ASV state describes key values about the ASV's position, orientation, and motion in physical space. It is comprised of the ASV's x position, y position, heading, linear velocity, and angular velocity.
 
-ASV state:
+*ASV state:*
 
-$$x_k=[p_x, p_y, \theta, v, \omega]$$
+$$x_k=[p_x, p_y, \theta]$$
 
-The ASV control vector describes the ASV's intention of movement, which is imperfectly executed by motors in the physical world. It is comprised of the ASV's commanded linear velocity and commanded angular velocity.
+The ASV control vector describes the ASV's intention of movement, which is imperfectly executed by motors in the physical world. It is comprised of the ASV's commanded angular velocity, which is driven by a motorized rudder. The ASV's linear velocity (driven by thrusters) is assumed to be constant.
 
-ASV control:
+*ASV control:*
 
-$$u_k=[v_{k,cmd}, \omega_{k,cmd}]$$
+$$u_k=\omega_k$$
+$$v_{k}=v_{constant}$$
 
 The environmental disturbance vector describes the environment's physical influence on the ASV's motion, modeled as velocity. It is comprised of an x velocity component and a y velocity component.
 
-Environmental disturbance:
+*Environmental disturbance:*
 
 $$d=[d_x,d_y]$$
 
@@ -110,13 +108,11 @@ $$p_{x,k+1}^{}=p_{x,k}+(v_kcos(\theta_k)+d_x)*dt$$
 
 $$p_{y,k+1}=p_{y,k}+(v_ksin(\theta_k)+d_y)*dt$$
 
-$$\theta_{k+1}=\theta_k+\omega_k*dt$$
-
-$$v_{k+1}=v_{cmd}$$
-
-$$\omega_{k+1}=\omega_{cmd}$$
+$$\theta_{k+1}=\omega_{k,cmd}*dt$$
 
 ### Waypoint Iteration
+
+>TODO: unclear if i want to keep this or just have a single waypoint
 
 In the objective function, the ASV's distance to its next waypoint is a critical factor to minimize. As such, the model must iterate through a set of waypoints throughout the optimization process.
 
@@ -172,7 +168,6 @@ Physical constants derived from the [BlueRobotics BlueBoat datasheet](https://bl
 $M=16.82$ kg\
 $T_{max}=9$ h\
 $E_{max}=266$ Wh\
-$v_{max}=3\frac{m}{s}$ \
 $\omega_{max}=2\pi\frac{rad}{s}$
 
 #### Uncertainty Constants
@@ -186,7 +181,8 @@ $\sigma_{ADCP}=???$
 #### Modeling Constants
 Modeling constants are chosen for their utility in balancing a smooth and realistic model.
 
-$dt=0.1$ s
+$dt=0.1$ s \
+$v_{max}=3\frac{m}{s}$
 
 ## Methodology
 
@@ -202,9 +198,18 @@ $dt=0.1$ s
 
 ## Results
 
+-
+
 ## Conclusion
 
 ## Sources
 ### Accurate Modeling
 [BlueRobotics BlueBoat datasheet](https://bluerobotics.com/wp-content/uploads/2023/03/BLUEBOAT-DATASHEET-v1.1-JAN-2025.pdf) \
 [BlueRobotics battery](https://bluerobotics.com/store/comm-control-power/powersupplies-batteries/battery-li-4s-18ah-r3/)
+
+## Questions
+- Optimizing sequences in py-grama?
+- gr.ev_min (gradient descent) vs bayesian optimization vs something else?
+- decision variables related to state/position but not directly in the equations
+- motion kinematics in the model
+- uncertainty propagation a la Kalman Filter: F @ P @ F.T + Q?
