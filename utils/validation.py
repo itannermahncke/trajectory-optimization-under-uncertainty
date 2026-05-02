@@ -1,13 +1,17 @@
 """
 My hacky solution of running several instances of the deterministic model with different wind directions.
-There is surely a better method of doing this than what follows, but my simple for-loop method of rerunning
-the model and altering the D_ANG constant seemed to cause some backend py-grama issues.
+This is necessary because the way that py-grama parallelizes operations in the background means that my attempts
+to run several trials with varying wind directions would get conflated results, even when each trial succeeded when
+running independently.
 """
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import grama as gr
 import math
+
+import utils.visualization as viz
 
 # --- USEFUL CODE FROM MAIN FILE ---
 
@@ -30,66 +34,21 @@ DET = False
 D_MAG = 0.5
 D_ANG = math.pi / 2
 
-
-def det_state_transition(
-    init_state: tuple[float, float, float],
-    input_vec: pd.Series,
-):
-    """
-    Helper function to perform state transitions from an initial state using a control vector and random variables.
-
-    This is a deterministic function that does not account for sampled uncertainty values.
-    """
-    # grab initial state
-    states = [init_state]
-
-    # grab sequential control vectors
-    lin_vels = [float(input_vec[f"v{k}"]) for k in range(timesteps)]
-    ang_vels = [float(input_vec[f"w{k}"]) for k in range(timesteps)]
-
-    # iterate through control vector
-    for vk, wk in zip(lin_vels, ang_vels):
-        # state variables
-        xk, yk, thk = states[-1]
-
-        # disturbance in xy
-        d_ang_flip = D_ANG + math.pi
-        d_ang_wrap = np.arctan2(np.sin(d_ang_flip), np.cos(d_ang_flip))
-        d_x = D_MAG * math.cos(d_ang_wrap)
-        d_y = D_MAG * math.sin(d_ang_wrap)
-
-        # kinematics
-        xk1 = xk + DT * (vk * math.cos(thk) + d_x)
-        yk1 = yk + DT * (vk * math.sin(thk) + d_y)
-        thk1 = thk + DT * (wk)
-        thk1 = np.arctan2(np.sin(thk1), np.cos(thk1))  # wrap to [-pi, pi]
-
-        # iterate state
-        states.append((xk1, yk1, thk1))
-
-    # return final state sequence
-    return states
+# grama variable vectors
+controls = [
+    f"w{int(k/2)}" if k % 2 == 0 else f"v{int(k/2)}" for k in range(timesteps * 2)
+]  # lin vel, ang vel
+objectives = ["D", "J"]  # cumulative distance, energy consumed
+states = [f"x{k}" for k in range(timesteps)]  # state (x, y, theta)
 
 
 # primary objective functions
 def D_total_distance(input_vec):
-    """
-    Vectorized function to calculate the D (cumulative distance from waypoint across time) column of a scenario row.
-    """
-    # sum distance
     sum_distance = 0
-
-    state_sequence = det_state_transition(deployment_state, input_vec)
-
-    # iterate through state sequence
+    state_sequence = state_transition(deployment_state, input_vec)
     for s in state_sequence:
-        # state variables
         xk, yk, _ = s
-
-        # add to sum distance
         sum_distance += np.sqrt((xk - waypt[0]) ** 2 + (yk - waypt[1]) ** 2)
-
-    # return raw distance from state to waypoint
     return sum_distance
 
 
@@ -112,48 +71,54 @@ def J_final_energy(input_vec):
     return relative_energy
 
 
-# grama variable vectors
-controls = [
-    f"w{int(k/2)}" if k % 2 == 0 else f"v{int(k/2)}" for k in range(timesteps * 2)
-]  # lin vel, ang vel
-objectives = ["D", "J"]  # cumulative distance, energy consumed
-states = [f"x{k}" for k in range(timesteps)]  # state (x, y, theta)
-
-
-def model_trajectory(df_in: pd.DataFrame):
-    """
-    DataFrame-based method of extracting objective function values from a given control input sequence.
-
-    Args:
-        df_in: A DataFrame in which each column represents a decision variable or a random variable.
-
-    Returns:
-        df_out: A DataFrame in which each column represents an objective function value.
-    """
-    # establish the out dataframe
+def model_trajectory(df_in):
     df_out = pd.DataFrame()
-
-    # establish vectorized functions for objectives
     df_out["D"] = df_in.apply(D_total_distance, axis="columns")
     df_out["J"] = df_in.apply(J_final_energy, axis="columns")
-
-    # return
     return df_out
 
 
-# --- USEFUL CODE FROM MAIN FILE ---
+# --- END USEFUL CODE FROM MAIN FILE ---
+
+
+def state_transition(init_state, input_vec):
+    """
+    Slightly modified state transition function that expects disturbance heading as a decision variable.
+    """
+    # state sequencing and control variables
+    states = [init_state]
+    lin_vels = [float(input_vec[f"v{k}"]) for k in range(timesteps)]
+    ang_vels = [float(input_vec[f"w{k}"]) for k in range(timesteps)]
+
+    # for each timestep
+    for vk, wk in zip(lin_vels, ang_vels):
+        # extract state
+        xk, yk, thk = states[-1]
+
+        # extract disturbance
+        d_ang = input_vec["dth"]
+        d_x = D_MAG * math.cos(d_ang)
+        d_y = D_MAG * math.sin(d_ang)
+
+        # kinematics
+        xk1 = xk + DT * (vk * math.cos(thk) + d_x)
+        yk1 = yk + DT * (vk * math.sin(thk) + d_y)
+        thk1 = np.arctan2(np.sin(thk + DT * wk), np.cos(thk + DT * wk))
+
+        # save state
+        states.append((xk1, yk1, thk1))
+    return states
 
 
 def perform_validation(test_angles):
     """
     Validate the deterministic model by demonstrating its performance under a given set of test disturbance angles.
+
+    Each test angle is associated with a new model identical to the deterministic model but with disturbance angle as a constant decision variable.
     """
     opt_controls = []
 
     for d_ang in test_angles:
-        # set the angle
-        D_ANG = d_ang
-
         # redefine the model
         md_asv_det = (
             # name model
@@ -161,13 +126,15 @@ def perform_validation(test_angles):
             # state transition kinematics
             >> gr.cp_vec_function(
                 fun=model_trajectory,
-                var=controls,
+                var=controls + ["dth"],
                 out=objectives,
             )
             # constrain linear velocity commands
             >> gr.cp_bounds(**{f"v{k}": (-0.0, +V_MAX) for k in range(timesteps)})
             # constrain angular velocity commands
             >> gr.cp_bounds(**{f"w{k}": (-W_MAX, +W_MAX) for k in range(timesteps)})
+            # constrain d_ang
+            >> gr.cp_bounds(dth=(d_ang, d_ang))
         )
 
         # unconstrained optimization on primary objective
@@ -193,6 +160,20 @@ def perform_validation(test_angles):
                 out_leq=["Dtol_leq"],
             )
         )
-        opt_controls.append(df_multi[controls].loc[df_multi["D"].idxmin()])
+        opt_controls.append(df_multi[controls + ["dth"]].loc[df_multi["D"].idxmin()])
 
-    return opt_controls
+    plot_validation_results(test_angles, opt_controls)
+
+
+def plot_validation_results(test_angles, opt_controls):
+    """
+    Plot results.
+    """
+    for k, (ang, vec) in enumerate(zip(test_angles, opt_controls)):
+        viz.plot_trajectory(
+            state_transition(deployment_state, vec),
+            deployment_state,
+            waypt,
+            round(ang, 3),
+        )
+        plt.show()
